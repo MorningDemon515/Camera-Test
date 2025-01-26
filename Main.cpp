@@ -234,6 +234,24 @@ void GameCode()
     glUniformMatrix4fv(shader->GetShaderSourceUniform("projection"), 1, GL_FALSE, &projection[0][0]);
     glUniformMatrix4fv(shader->GetShaderSourceUniform("view"), 1, GL_FALSE, &view[0][0]);
 
+    // light properties
+        glm::vec3 lightColor;
+        lightColor.x = static_cast<float>(sin((SDL_GetTicks() / 1000.0f) * 2.0));
+        lightColor.y = static_cast<float>(sin((SDL_GetTicks() / 1000.0f) * 0.7));
+        lightColor.z = static_cast<float>(sin((SDL_GetTicks() / 1000.0f) * 1.3));
+        glm::vec3 diffuseColor = lightColor   * glm::vec3(0.5f); // decrease the influence
+        glm::vec3 ambientColor = diffuseColor * glm::vec3(0.2f); // low influence
+
+        glUniform3fv(shader->GetShaderSourceUniform("light.ambient"),1,&ambientColor[0]);
+        glUniform3fv(shader->GetShaderSourceUniform("light.diffuse"),1,&diffuseColor[0]);
+        glUniform3f(shader->GetShaderSourceUniform("light.specular"),1.0f, 1.0f, 1.0f);
+
+        glUniform3f(shader->GetShaderSourceUniform("material.ambient"),1.0f, 0.5f, 0.31f);
+        glUniform3f(shader->GetShaderSourceUniform("material.diffuse"),1.0f, 0.5f, 0.31f);
+        glUniform3f(shader->GetShaderSourceUniform("material.specular"),0.5f, 0.5f, 0.5f);
+        glUniform1f(shader->GetShaderSourceUniform("material.shininess"),32.0f);
+
+
     // world transformation
     glm::mat4 model = glm::mat4(1.0f);
     glUniformMatrix4fv(shader->GetShaderSourceUniform("model"), 1, GL_FALSE, &model[0][0]);
