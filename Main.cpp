@@ -1,116 +1,60 @@
-#include "Camera.h"
 
 #define SDL_MAIN_HANDLED
-#include <SDL.h>
+#include "Main.h"
 
-int width = 800;
-int height = 600;
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+#include <windows.h>
+
+SDL_Window* window;
+SDL_Renderer* renderer;
+SDL_Event event;
+bool run = true;
+
+GLuint VAO,VBO,texture;
+
 ShaderFromFile* shader;
+
+Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, FPS);
+
+void GameCode();
 
 int main()
 {
     SDL_Init(SDL_INIT_EVERYTHING);
 
-    SDL_Window* window = SDL_CreateWindow(
-        "Camera Test",
+    window = SDL_CreateWindow(
+        " ",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        width,height,
-        SDL_WINDOW_SHOWN|SDL_WINDOW_OPENGL
+        WIDTH,HEIGHT,
+        SDL_WINDOW_SHOWN
     );
 
-    SDL_GLContext glc;
+    renderer = SDL_CreateRenderer(window,3,SDL_RENDERER_ACCELERATED);
 
-    glc = SDL_GL_CreateContext(window);
-    SDL_GL_MakeCurrent(window,glc);
+    SDL_RendererInfo info = {};
+    int count = SDL_GetNumRenderDrivers();
+    for (int i = 0; i < count; ++i) {
+        SDL_GetRenderDriverInfo(i,&info);
+        const char* name = info.name;
+        printf("Render driver: %d: %s\n", i, name);
+    }
+
+    SDL_SetRelativeMouseMode(SDL_TRUE);
+
     gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress);
 
-    SDL_Event event;
-    bool run = true;
-
-    // camera
-    Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
-    float lastX = width / 2.0f;
-    float lastY = height / 2.0f;
-    bool firstMouse = true;
-
-    // timing
-    float deltaTime = 0.0f;	// time between current frame and last frame
+    float deltaTime = 0.0f;
     float lastFrame = 0.0f;
-
-    shader = new ShaderFromFile("camera.vs","camera.fs");
-
-    float vertices[] = {
-        -0.5f, -0.5f, -0.5f,  
-         0.5f, -0.5f, -0.5f,  
-         0.5f,  0.5f, -0.5f,  
-         0.5f,  0.5f, -0.5f,  
-        -0.5f,  0.5f, -0.5f,  
-        -0.5f, -0.5f, -0.5f, 
-
-        -0.5f, -0.5f,  0.5f,  
-         0.5f, -0.5f,  0.5f,  
-         0.5f,  0.5f,  0.5f,  
-         0.5f,  0.5f,  0.5f,  
-        -0.5f,  0.5f,  0.5f,  
-        -0.5f, -0.5f,  0.5f, 
-
-        -0.5f,  0.5f,  0.5f,  
-        -0.5f,  0.5f, -0.5f,  
-        -0.5f, -0.5f, -0.5f,  
-        -0.5f, -0.5f, -0.5f, 
-        -0.5f, -0.5f,  0.5f,  
-        -0.5f,  0.5f,  0.5f,  
-
-         0.5f,  0.5f,  0.5f, 
-         0.5f,  0.5f, -0.5f,  
-         0.5f, -0.5f, -0.5f,  
-         0.5f, -0.5f, -0.5f,  
-         0.5f, -0.5f,  0.5f, 
-         0.5f,  0.5f,  0.5f, 
-
-        -0.5f, -0.5f, -0.5f,  
-         0.5f, -0.5f, -0.5f,  
-         0.5f, -0.5f,  0.5f,  
-         0.5f, -0.5f,  0.5f,  
-        -0.5f, -0.5f,  0.5f,  
-        -0.5f, -0.5f, -0.5f,  
-
-        -0.5f,  0.5f, -0.5f,  
-         0.5f,  0.5f, -0.5f,  
-         0.5f,  0.5f,  0.5f,  
-         0.5f,  0.5f,  0.5f,  
-        -0.5f,  0.5f,  0.5f,  
-        -0.5f,  0.5f, -0.5f 
-    };
-    // world space positions of our cubes
-    glm::vec3 cubePositions[] = {
-        glm::vec3( 0.0f,  0.0f,  0.0f),
-        glm::vec3( 2.0f,  5.0f, -15.0f),
-        glm::vec3(-1.5f, -2.2f, -2.5f),
-        glm::vec3(-3.8f, -2.0f, -12.3f),
-        glm::vec3( 2.4f, -0.4f, -3.5f),
-        glm::vec3(-1.7f,  3.0f, -7.5f),
-        glm::vec3( 1.3f, -2.0f, -2.5f),
-        glm::vec3( 1.5f,  2.0f, -2.5f),
-        glm::vec3( 1.5f,  0.2f, -1.5f),
-        glm::vec3(-1.3f,  1.0f, -1.5f)
-    };
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
 
     while (run)
     {
+        float currentFrame = SDL_GetTicks() / 1000.0f;
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
         SDL_PollEvent(&event);
 
         if(event.type == SDL_QUIT)
@@ -126,30 +70,10 @@ int main()
                 int py = event.motion.y;
             
                 float xpos = static_cast<float>(px);
-                 float ypos = static_cast<float>(py);
+                float ypos = static_cast<float>(py);
 
-                    if (firstMouse)
-                    {
-                        lastX = xpos;
-                        lastY = ypos;
-                        firstMouse = false;
-                    }
+                camera.processMouseMovement(event.motion.xrel, -event.motion.yrel);
 
-                    float xoffset = xpos - lastX;
-                    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
-
-                    lastX = xpos;
-                    lastY = ypos;
-
-                    camera.ProcessMouseMovement(xoffset, yoffset);
-         }
-
-         if(event.type == SDL_MOUSEWHEEL)
-         {
-            int px = event.wheel.x;
-            int py = event.wheel.y;
-        
-            camera.ProcessMouseScroll(static_cast<float>(py));
          }
 
         if(event.type == SDL_KEYDOWN)
@@ -159,71 +83,140 @@ int main()
                 run = false;
             }
 
-            if(event.key.keysym.sym == SDLK_w)
+            if(event.key.keysym.sym == SDLK_p)
             {
-                camera.ProcessKeyboard(FORWARD, deltaTime);
+                camera.switchMode(FPS);
             }
 
-            if(event.key.keysym.sym == SDLK_s)
+            if(event.key.keysym.sym == SDLK_f)
             {
-                camera.ProcessKeyboard(BACKWARD, deltaTime);
-            }
-
-            if(event.key.keysym.sym == SDLK_a)
-            {
-                camera.ProcessKeyboard(LEFT, deltaTime);
-            }
-
-            if(event.key.keysym.sym == SDLK_d)
-            {
-                camera.ProcessKeyboard(RIGHT, deltaTime);
+                camera.switchMode(FLIGHT);
             }
         }
 
-        float currentFrame = static_cast<float>(SDL_GetTicks64());
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
+        const Uint8* state = SDL_GetKeyboardState(NULL);
+        if (state[SDL_SCANCODE_W] )
+        {
+            camera.processKeyboard(static_cast<SDL_Scancode>(SDL_SCANCODE_W), deltaTime);
+        }
+
+        if(state[SDL_SCANCODE_S])
+        {
+            camera.processKeyboard(static_cast<SDL_Scancode>(SDL_SCANCODE_S), deltaTime);
+        }
+
+        if(state[SDL_SCANCODE_A] )
+        {
+            camera.processKeyboard(static_cast<SDL_Scancode>(SDL_SCANCODE_A), deltaTime);
+        }
+
+        if(state[SDL_SCANCODE_D])
+        {
+            camera.processKeyboard(static_cast<SDL_Scancode>(SDL_SCANCODE_D), deltaTime);
+        }
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-
-        shader->Use();
-
-        glEnable(GL_DEPTH_TEST);
-
-         // pass projection matrix to shader (note that in this case it could change every frame)
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)width / (float)height, 0.1f, 100.0f);
-        GLuint proloc = shader->GetShaderSourceUniform("projection");
-        glUniformMatrix4fv(proloc,1,GL_FALSE,&projection[0][0]);
-
-        // camera/view transformation
-        glm::mat4 view = camera.GetViewMatrix();
-        GLuint viewloc = shader->GetShaderSourceUniform("view");
-        glUniformMatrix4fv(viewloc,1,GL_FALSE,&view[0][0]);
-
-        // render boxes
-        glBindVertexArray(VAO);
-        for (unsigned int i = 0; i < 10; i++)
-        {
-            // calculate the model matrix for each object and pass it to shader before drawing
-            glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-            model = glm::translate(model, cubePositions[i]);
-            float angle = 20.0f * i;
-            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-            GLuint modelloc = shader->GetShaderSourceUniform("model");
-            glUniformMatrix4fv(modelloc,1,GL_FALSE,glm::value_ptr(model));
-
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
-
-        SDL_GL_SwapWindow(window);
-
-
+        glClear(GL_COLOR_BUFFER_BIT| GL_DEPTH_BUFFER_BIT);
+        
+        GameCode();
+        RenderText(L"W, A, S, D移动", (float)(800/2  - 100), (float)(720 - 200), 1.0f, glm::vec3(1.0, 0.0f, 0.0f));
+        SDL_RenderPresent(renderer);
     }
     
-    SDL_GL_DeleteContext(glc);
+    glDeleteBuffers(1,&texture);
+    glDeleteVertexArrays(1,&VAO);
+    glDeleteBuffers(1,&VBO);
+
+    delete shader;
+
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
 
     return 0;
+}
+
+void GameCode()
+{
+    shader= new ShaderFromFile("vertex.glsl","fragment.glsl");
+    float vertices[] = {
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+    };
+
+    glGenVertexArrays(1,&VAO);
+    glGenBuffers(1,&VBO);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+     
+    shader->Use();
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 view = camera.getViewMatrix();
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
+
+    model = glm::rotate(model, glm::radians(60.0f), glm::vec3(1.0f, 1.0f, 0.0f));
+    //view = glm::translate(view, glm::vec3(0.0f, 0.0f, -5.0f));
+   // projection = glm::perspective(glm::radians(45.0f), (float)WIDTH/(float)HEIGHT, 0.1f, 100.0f);
+    
+    GLuint modelloc = shader->GetShaderSourceUniform("model");
+    GLuint viewloc = shader->GetShaderSourceUniform("view");
+    GLuint proloc = shader->GetShaderSourceUniform("projection");
+
+    glUniformMatrix4fv(modelloc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(viewloc, 1, GL_FALSE, &view[0][0]);
+    glUniformMatrix4fv(proloc, 1, GL_FALSE, &projection[0][0]);
+
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
 }
