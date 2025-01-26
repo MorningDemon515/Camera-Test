@@ -130,6 +130,7 @@ int main()
         GameCode();
         RenderText(L"真正的立方体，真正的3D世界", (float)(800/2  - 100), (float)(720 - 200), 1.0f, glm::vec3(1.0, 0.0f, 0.0f));
         SDL_RenderPresent(renderer);
+
     }
     
     glDeleteBuffers(1,&texture);
@@ -223,7 +224,8 @@ void GameCode()
     shader->Use();
     glUniform3f(shader->GetShaderSourceUniform("objectColor"), 1.0f, 0.5f, 0.31f);
     glUniform3f(shader->GetShaderSourceUniform("lightColor"),1.0f, 1.0f, 1.0f);
-    glUniform3f(shader->GetShaderSourceUniform("lightPos"),1.2f, 1.0f, 2.0f);
+    glUniform3fv(shader->GetShaderSourceUniform("lightPos"),1,&lightPos[0]);
+    glUniform3fv(shader->GetShaderSourceUniform("viewPos"), 1,&glm::value_ptr(camera.cp)[0]);
 
      // view/projection transformations
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
